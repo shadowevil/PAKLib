@@ -1,4 +1,33 @@
 ﻿
+# Example
+```C#
+    const string inFilePath = @"SPRITES\New-Dialog.pak";
+    const string outFilePath = @"SPRITES\New-Dialog-new.pak";
+
+    PAK pak = PAK.ReadFromFile(inFilePath);
+
+    int i = 0;
+    foreach (var sprite in pak.Data.Sprites)
+    {
+        using (MemoryStream ms = new MemoryStream(sprite.data))
+        using (Bitmap bmp = new Bitmap(Image.FromStream(ms)))
+        {
+            bmp.Save($"{i++}.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
+        }
+    }
+
+    if (pak.Data == null)
+    {
+        Console.WriteLine("Failed to read PAK data.");
+        return;
+    }
+
+    Console.WriteLine($"Read {pak.Data.Sprites.Count} sprites from PAK file.");
+
+    pak.Data.Write(outFilePath);
+    Console.WriteLine($"PAK data written to {outFilePath} successfully.");
+```
+
 # PAK File Format Specification
 
 ## 1. File Header *`20 bytes total`*
