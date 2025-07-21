@@ -45,8 +45,8 @@
 Starts at offset 24, repeats `Count` times (8 bytes each):  
 | Offset (rel) | Field   | Type   | Size (bytes) | Description                                        |
 | ------------ | ------- | ------ | ------------- | -------------------------------------------------- |
-| 24+n+0       | Offset  | Int32  | 4             | Byte position of this sprite entry from file start |
-| 24+n+4       | Length  | Int32  | 4             | Total bytes of this sprite entry                   |
+| `24+n*4`       | Offset  | Int32  | 4             | Byte position of this sprite entry from file start |
+| `24+n*4+4`       | Length  | Int32  | 4             | Total bytes of this sprite entry                   |
 
 ## 4. Sprite Entry  *`108+(12*n) bytes total`*
 At each table `Offset`, layout is:
