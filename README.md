@@ -1,5 +1,4 @@
-﻿
-# Example
+﻿# Example
 ```C#
     const string inFilePath = @"SPRITES\New-Dialog.pak";
     const string outFilePath = @"SPRITES\New-Dialog-new.pak";
@@ -27,6 +26,9 @@
     pak.Data.Write(outFilePath);
     Console.WriteLine($"PAK data written to {outFilePath} successfully.");
 ```
+
+# Nuget Package
+https://www.nuget.org/packages/PAKLib/1.0.0
 
 # PAK File Format Specification
 
