@@ -14,7 +14,7 @@ namespace PAKLib
         public int SpriteCount => Sprites.Count;
         public List<Range> SpriteEntryLengthOffsets { get; set; } = new List<Range>();
 
-        private PAKData()
+        public PAKData()
         { }
 
         public static PAKData Read(byte[] bytes)

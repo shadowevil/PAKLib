@@ -7,9 +7,14 @@
 		<AllowUnsafeBlocks>False</AllowUnsafeBlocks>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseFile>COPYING</PackageLicenseFile>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>PAK Library</Title>
+		<AssemblyVersion>1.0.0.1</AssemblyVersion>
+		<FileVersion>1.0.0.1</FileVersion>
+		<VersionPrefix>$(FileVersion)</VersionPrefix>
 	</PropertyGroup>
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="\"/>
-		<None Include="COPYING" Pack="true" PackagePath="\"/>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="COPYING" Pack="true" PackagePath="\" />
 	</ItemGroup>
 </Project>
