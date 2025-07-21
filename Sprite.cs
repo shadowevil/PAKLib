@@ -9,6 +9,6 @@ namespace PAKLib
     public class Sprite
     {
         public List<SpriteRectangle> Rectangles { get; set; } = new List<SpriteRectangle>();
-        public byte[]? data { get; set; }
+        public byte[] data { get; set; } = Array.Empty<byte>();
     }
 }

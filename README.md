@@ -1,33 +1,52 @@
-# PAK File Reader Documentation
-This document provides a structured breakdown of the PAK file format.
+﻿
+# PAK File Format Specification
 
-## 1. PAK File Structure Overview
-| Offset (byte) | Size (bytes) | Type | Description                                                  |
-|--------|-----------|-----------------|--------------------------------------------------------------|
-| 0 | 17 | String | "&lt;Pak file header&gt;" Identification of the file type to be read |
-| 17 | 3 | Padding *(0x00 null bytes)* | Padding |
-| 20 | 4 | Int | Sprite count (N)                                             |
-| 24 | 8*N | (Int * 2) * N | Sprite entry offsets and endsets stored as consecutive values. |
-| ...    | variable  | Sprite data     | Sequence of N Sprite structures                              |
+## 1. File Header *`20 bytes total`*
+| Offset | Field   | Type     | Size (bytes) | Description                 |
+| ------ | ------- | -------- | ---- | --------------------------- |
+| 0      | Magic   | UTF-8    | 17   | `"<Pak file header>"`       |
+| 17     | Padding | byte[3]  | 3    | `0x00, 0x00, 0x00`          |
 
-## 2. Sprite Entry Structure
-Each Sprite entry starts with a SpriteHeader.
+## 2. Sprite Count  *`4 bytes total`*
+| Offset | Field       | Type   | Size (bytes) | Description                       |
+| ------ | ----------- | ------ | ---- | --------------------------------- |
+| 20     | Count       | Int32  | 4    | Number of sprite entries in file  |
 
-| Offset (byte) | Size (bytes) | Type | Description                                                  |
-|--------|------------|-------------|---------------------------------------------------------------|
-| 0 | 20 | String | "&lt;Sprite File Header&gt;" Entry Identity   |
-| 20 | 80 | Padding *(0x00 null bytes)* | Padding |
-| 100 | 4 | Int | Rectangle count (R) |
-| 104   | 12*R bytes | 6 * Short | Rectangle data (x, y, w, h, pivotX, pivotY) |
-| ... | variable | Image Data | Should read the bmp headers and read the image appropriately |
+## 3. Sprite Table  *`8*n bytes total`*
+Starts at offset 24, repeats `Count` times (8 bytes each):  
+| Offset (rel) | Field   | Type   | Size (bytes) | Description                                        |
+| ------------ | ------- | ------ | ------------- | -------------------------------------------------- |
+| 24+n+0       | Offset  | Int32  | 4             | Byte position of this sprite entry from file start |
+| 24+n+4       | Length  | Int32  | 4             | Total bytes of this sprite entry                   |
 
-### Rectangle Entry Structure
+## 4. Sprite Entry  *`108+(12*n) bytes total`*
+At each table `Offset`, layout is:
 
-| Field   | Type  | Description         |
-|---------|-------|---------------------|
-| x       | Short | X-coordinate        |
-| y       | Short | Y-coordinate        |
-| width   | Short | Width of rectangle  |
-| height  | Short | Height of rectangle |
-| pivotX  | Short | X pivot offset      |
-| pivotY  | Short | Y pivot offset      |
+### 4.1 Sprite Header  *`100 bytes total`*
+| Offset (rel) | Field   | Type      | Size (bytes) | Description                |
+| ------------ | ------- | --------- | ---- | -------------------------- |
+| 0            | Magic   | UTF-8     | 20   | `"<Sprite File Header>"`   |
+| 20           | Padding | byte[80]  | 80   | Reserved                   |
+
+### 4.2 Rectangle Data  *`4+(12*n) bytes total`*
+| Offset (rel) | Field | Type   | Size (bytes) | Description                                |
+| ------------ | ----- | ------ | ------------------------ | ------------------------------------------ |
+| 100          | Count | Int32  | 4                        | Number of rectangles                       |
+| 104          | Data  | Records| Count × 12 bytes         | Each record: x(Int16), y(Int16), width(Int16), height(Int16), pivotX(Int16), pivotY(Int16) |
+
+### 4.3 Entry Padding  *`4 bytes total`*
+| Offset (rel) | Field   | Type     | Size (bytes) | Description        |
+| ------------ | ------- | -------- | ---- | ------------------ |
+| ... | Padding | byte[4]  | 4    | Always zero bytes  |
+
+### 4.4 Image Data  *`variable length`*
+| Offset (rel) | Field | Type    | Size (bytes) | Description                |
+| ------------ | ----- | ------- | ------------ | -------------------------- |
+| ... | Data  | byte[]  | ... 				  | Raw sprite image bytes     |
+
+---
+
+**Notes:**  
+- All multi‑byte integers are little‑endian.  
+- `Length` in the sprite table covers from the sprite’s `Offset` through the end of its image data.  
+- Rectangle record size is fixed at 12 bytes per rectangle.  

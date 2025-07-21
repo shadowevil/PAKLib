@@ -2,12 +2,12 @@
 {
     public class PAK
     {
-        public Data? Data;
+        public PAKData? Data;
 
         public PAK()
         { }
 
-        public static PAK CreateFromFile(in string FilePath)
+        public static PAK ReadFromFile(in string FilePath)
         {
             if (string.IsNullOrWhiteSpace(FilePath))
             {
@@ -25,7 +25,7 @@
             }
 
             PAK pak = new PAK();
-            pak.Data = Data.Create(File.ReadAllBytes(FilePath));
+            pak.Data = PAKData.Read(File.ReadAllBytes(FilePath));
 
             return pak;
         }
