@@ -28,7 +28,7 @@
 ```
 
 # Nuget Package
-https://www.nuget.org/packages/PAKLib/1.0.0
+https://www.nuget.org/packages/PAKLib
 
 # PAK File Format Specification
 

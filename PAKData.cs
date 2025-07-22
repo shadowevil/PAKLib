@@ -46,16 +46,16 @@ namespace PAKLib
             for (int i=0; i < spriteCount; i++)
             {
                 data.SpriteEntryLengthOffsets.Add(new Range(
-                    reader.ReadInt32(),
-                    reader.ReadInt32()
+                    reader.ReadInt32(),     // ASDFileLocation
+                    reader.ReadInt32()      // ChunkSize
                     ));
             }
 
             data.Sprites = new List<Sprite>(spriteCount);
-            foreach (var (start, length) in data.SpriteEntryLengthOffsets.Select(x => (x.Start.Value, x.End.Value)))
+            foreach (var (ASDFileLocation, ChunkSize) in data.SpriteEntryLengthOffsets.Select(x => (x.Start.Value, x.End.Value)))
             {
-                // Begin counting the number of bytes read for the sprite header, rectangles, and padding data.
-                long beginRead = reader.BaseStream.Position;
+                if(reader.BaseStream.Position != ASDFileLocation)
+                    throw new Exception($"Expected to be at position {ASDFileLocation}, but was at {reader.BaseStream.Position}.");
 
                 // Read the header and padding
                 SpriteHeader spriteHeader = new SpriteHeader
@@ -87,13 +87,13 @@ namespace PAKLib
                 }
 
                 // Padding
-                _ = reader.ReadBytes(4);
+                reader.SkipBytes(4);
 
-                // Calculate the image length from the current position in the stream and the start of the sprite entry.
-                long newLength = length - (int)(reader.BaseStream.Position - beginRead);
-
-                // read the image data
+                var defaultHeader = SpriteHeader.Default();
+                long newLength = ChunkSize - (defaultHeader.Magic.Length + defaultHeader.Padding.Length + sizeof(Int32) + (sprite.Rectangles.Count * Marshal.SizeOf<SpriteRectangle>())) - sizeof(int);
                 sprite.data = reader.ReadBytes((int)newLength);
+
+                File.WriteAllBytes("SPRITE_" + ASDFileLocation + ".bmp", sprite.data);
 
                 data.Sprites.Add(sprite);
             }
