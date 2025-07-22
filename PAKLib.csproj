@@ -9,8 +9,8 @@
 		<PackageLicenseFile>COPYING</PackageLicenseFile>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<Title>PAK Library</Title>
-		<AssemblyVersion>1.0.0.2</AssemblyVersion>
-		<FileVersion>1.0.0.2</FileVersion>
+		<AssemblyVersion>$(FileVersion)</AssemblyVersion>
+		<FileVersion>1.0.0.3</FileVersion>
 		<VersionPrefix>$(FileVersion)</VersionPrefix>
 	</PropertyGroup>
 	<ItemGroup>

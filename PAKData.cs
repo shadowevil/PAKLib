@@ -52,16 +52,17 @@ namespace PAKLib
             }
 
             data.Sprites = new List<Sprite>(spriteCount);
-            foreach (var (ASDFileLocation, ChunkSize) in data.SpriteEntryLengthOffsets.Select(x => (x.Start.Value, x.End.Value)))
+            foreach (var (SpriteChunkOffset, ChunkSize) in data.SpriteEntryLengthOffsets.Select(x => (x.Start.Value, x.End.Value)))
             {
-                if(reader.BaseStream.Position != ASDFileLocation)
-                    throw new Exception($"Expected to be at position {ASDFileLocation}, but was at {reader.BaseStream.Position}.");
+                if(reader.BaseStream.Position != SpriteChunkOffset)
+                    throw new Exception($"Expected to be at position {SpriteChunkOffset}, but was at {reader.BaseStream.Position}.");
 
                 // Read the header and padding
+                var defaultHeader = SpriteHeader.Default();
                 SpriteHeader spriteHeader = new SpriteHeader
                 {
-                    Magic = Encoding.UTF8.GetString(reader.ReadBytes(SpriteHeader.Default().Magic.Length)),
-                    Padding = reader.ReadBytes(SpriteHeader.Default().Padding.Length)
+                    Magic = Encoding.UTF8.GetString(reader.ReadBytes(defaultHeader.Magic.Length)),
+                    Padding = reader.ReadBytes(defaultHeader.Padding.Length)
                 };
                 // Check if the magic is correct
                 if (spriteHeader.Magic != SpriteHeader.Default().Magic)
@@ -89,11 +90,13 @@ namespace PAKLib
                 // Padding
                 reader.SkipBytes(4);
 
-                var defaultHeader = SpriteHeader.Default();
-                long newLength = ChunkSize - (defaultHeader.Magic.Length + defaultHeader.Padding.Length + sizeof(Int32) + (sprite.Rectangles.Count * Marshal.SizeOf<SpriteRectangle>())) - sizeof(int);
+                // Calculate the size (in bytes) of the sprite itself (bmp)
+                int sizeOfSpriteHeader = defaultHeader.Magic.Length + defaultHeader.Padding.Length;
+                int sizeOfRectangleCount = sizeof(Int32);
+                int sizeOfSpriteRectangles = (sprite.Rectangles.Count * Marshal.SizeOf<SpriteRectangle>()) + sizeOfRectangleCount;
+                int sizeOfPadding = sizeof(Int32);
+                long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
                 sprite.data = reader.ReadBytes((int)newLength);
-
-                File.WriteAllBytes("SPRITE_" + ASDFileLocation + ".bmp", sprite.data);
 
                 data.Sprites.Add(sprite);
             }
