@@ -98,23 +98,66 @@ namespace PAKLib
                 long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
                 sprite.data = reader.ReadBytes((int)newLength);
                 
-                // Validate that the data is a bmp
-                byte[] BMP      = [0x42, 0x4d];
                 // Only add if valid BMP data
-                if (sprite.data.Take(BMP.Length).SequenceEqual(BMP))
+                if (IsValidBmp(sprite.data) || IsValidPng(sprite.data))
                 {
-                    int width = BitConverter.ToInt32(sprite.data, 18);
-                    int height = BitConverter.ToInt32(sprite.data, 22);
-
-                    if (width <= 0 || height <= 0)
-                    {
-                        continue;
-                    }
                     data.Sprites.Add(sprite);
+                } else
+                {
+                    throw new InvalidDataException("Invalid sprite data format. Expected BMP or PNG.");
                 }
             }
 
             return data;
+        }
+
+        private static bool IsValidBmp(byte[] data)
+        {
+            if (data == null || data.Length < 14)
+                return false;
+
+            // Check BMP signature
+            byte[] bmpSig = [0x42, 0x4D];
+            if (!data.Take(2).SequenceEqual(bmpSig))
+                return false;
+
+            int declaredSize = BitConverter.ToInt32(data, 2);
+            if (declaredSize > data.Length)
+                return false;
+
+            int width = BitConverter.ToInt32(data, 18);
+            int height = BitConverter.ToInt32(data, 22);
+
+            if (width <= 0 || height <= 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsValidPng(byte[] data)
+        {
+            if (data == null || data.Length < 8)
+                return false;
+
+            // Check PNG signature
+            byte[] pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+            if (!data.Take(8).SequenceEqual(pngSig))
+                return false;
+
+            // Check for IHDR chunk after signature
+            if (data.Length < 24)
+                return false;
+
+            // First chunk length (bytes 8–11), should be 13 for IHDR
+            int ihdrLength = BitConverter.ToInt32(data.Skip(8).Take(4).Reverse().ToArray(), 0);
+            if (ihdrLength != 13)
+                return false;
+
+            // Chunk type (bytes 12–15)
+            string chunkType = Encoding.ASCII.GetString(data, 12, 4);
+            return chunkType == "IHDR";
         }
 
         public void Write(in string FilePath)
