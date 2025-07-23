@@ -97,8 +97,21 @@ namespace PAKLib
                 int sizeOfPadding = sizeof(Int32);
                 long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
                 sprite.data = reader.ReadBytes((int)newLength);
+                
+                // Validate that the data is a bmp
+                byte[] BMP      = [0x42, 0x4d];
+                // Only add if valid BMP data
+                if (sprite.data.Take(BMP.Length).SequenceEqual(BMP))
+                {
+                    int width = BitConverter.ToInt32(sprite.data, 18);
+                    int height = BitConverter.ToInt32(sprite.data, 22);
 
-                data.Sprites.Add(sprite);
+                    if (width <= 0 || height <= 0)
+                    {
+                        continue;
+                    }
+                    data.Sprites.Add(sprite);
+                }
             }
 
             return data;

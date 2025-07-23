@@ -10,7 +10,7 @@
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<Title>PAK Library</Title>
 		<AssemblyVersion>$(FileVersion)</AssemblyVersion>
-		<FileVersion>1.0.0.3</FileVersion>
+		<FileVersion>1.0.0.4</FileVersion>
 		<VersionPrefix>$(FileVersion)</VersionPrefix>
 	</PropertyGroup>
 	<ItemGroup>
