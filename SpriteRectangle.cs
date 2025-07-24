@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PAKLib
 {
-    public struct SpriteRectangle
+    public class SpriteRectangle
     {
         public Int16 x;
         public Int16 y;
