@@ -93,7 +93,7 @@ namespace PAKLib
                 // Calculate the size (in bytes) of the sprite itself (bmp)
                 int sizeOfSpriteHeader = defaultHeader.Magic.Length + defaultHeader.Padding.Length;
                 int sizeOfRectangleCount = sizeof(Int32);
-                int sizeOfSpriteRectangles = (sprite.Rectangles.Count * Marshal.SizeOf<SpriteRectangle>()) + sizeOfRectangleCount;
+                int sizeOfSpriteRectangles = (sprite.Rectangles.Count * SpriteRectangle.Size()) + sizeOfRectangleCount;
                 int sizeOfPadding = sizeof(Int32);
                 long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
                 sprite.data = reader.ReadBytes((int)newLength);

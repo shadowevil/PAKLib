@@ -14,5 +14,13 @@ namespace PAKLib
         public Int16 height;
         public Int16 pivotX;
         public Int16 pivotY;
+
+        public static int Size()
+        {
+            return typeof(SpriteRectangle).GetFields(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance)
+                .Sum(f => System.Runtime.InteropServices.Marshal.SizeOf(f.FieldType));
+        }
     }
 }
