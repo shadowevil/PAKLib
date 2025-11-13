@@ -160,7 +160,7 @@ namespace PAKLib
             return chunkType == "IHDR";
         }
 
-        public void Write(in string FilePath)
+        public void Write(in string FilePath, in string encryption_key = "")
         {
             using MemoryStream ms = new MemoryStream();
             using BinaryWriter writer = new BinaryWriter(ms);
@@ -234,7 +234,21 @@ namespace PAKLib
             }
 
             writer.Flush();
-            File.WriteAllBytes(FilePath, ms.ToArray());
+
+            if (Path.GetExtension(FilePath).ToLower() == ".epak")
+            {
+                if (string.IsNullOrEmpty(encryption_key))
+                {
+                    throw new ArgumentException("Encryption key must be provided for encrypted PAK files.", nameof(encryption_key));
+                }
+                byte[] pakData = ms.ToArray();
+                Encryption.EncryptBytes(pakData, encryption_key);
+                File.WriteAllBytes(FilePath, pakData);
+            }
+            else
+            {
+                File.WriteAllBytes(FilePath, ms.ToArray());
+            }
         }
     }
 }
