@@ -9,12 +9,24 @@
 		<PackageLicenseFile>COPYING</PackageLicenseFile>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<Title>PAK Library</Title>
-		<AssemblyVersion>$(FileVersion)</AssemblyVersion>
 		<FileVersion>2.0.1</FileVersion>
+		<AssemblyVersion>$(FileVersion)</AssemblyVersion>
 		<VersionPrefix>$(FileVersion)</VersionPrefix>
 	</PropertyGroup>
 	<ItemGroup>
 		<None Include="README.md" Pack="true" PackagePath="\" />
 		<None Include="COPYING" Pack="true" PackagePath="\" />
 	</ItemGroup>
+
+	<!-- Refuse to pack a stale DLL: 2.0.0 shipped the 1.1 DLL left in obj\Release -->
+	<Target Name="VerifyPackedAssembly" BeforeTargets="GenerateNuspec" DependsOnTargets="GetAssemblyVersion" Condition="'$(IsCrossTargetingBuild)' != 'true'">
+		<GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
+			<Output TaskParameter="Assemblies" ItemName="_VerifyPackedIdentity" />
+		</GetAssemblyIdentity>
+		<PropertyGroup>
+			<_VerifyPackedVersion>@(_VerifyPackedIdentity->'%(Version)')</_VerifyPackedVersion>
+		</PropertyGroup>
+		<Error Condition="!$([MSBuild]::VersionEquals('$(_VerifyPackedVersion)', '$(AssemblyVersion)'))" Text="Refusing to pack: $(TargetPath) is version $(_VerifyPackedVersion) but this project builds $(AssemblyVersion). The DLL is stale; rebuild with --no-incremental." />
+		<Message Importance="high" Text="Packed DLL verified: $(TargetFileName) $(_VerifyPackedVersion)" />
+	</Target>
 </Project>
