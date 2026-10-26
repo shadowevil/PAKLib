@@ -28,6 +28,9 @@ Each sprite's image is a BMP or a PNG (`sprite.ImageFormat`).
   - PNGs are written as standard 8-bit RGBA, non-interlaced. Any PNG color type, bit depth or interlacing can be read.
 - `SpriteImage.ToBmp24(bytes, colorKey)` and `SpriteImage.ToPng(bytes, colorKey)` convert image bytes directly.
 
+# Version 2.0.1
+The 2.0.0 package on NuGet was built from stale output and contains the 1.1 code. Use 2.0.1, which has the 2.0 changes below.
+
 # Version 2.0 changes
 Breaking changes:
 - Encryption (`.epak`, `Encryption` class, the `encryption_key` parameters) is removed. `PAK.ReadFromFile` on an `.epak` throws `NotSupportedException`.
