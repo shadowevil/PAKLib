@@ -35,5 +35,25 @@ namespace PAKLib
         {
             ColorKey = null;
         }
+
+        public SpriteImageFormat ImageFormat => SpriteImage.GetFormat(data);
+
+        // Converts the image to a 24bpp BMP. Transparent PNG pixels are filled with the color key; a PNG without
+        // a color key gets SpriteImage.DefaultColorKey (magenta) as its key.
+        public void ConvertToBmp()
+        {
+            if (ImageFormat == SpriteImageFormat.Png && !ColorKey.HasValue)
+                ColorKey = SpriteImage.DefaultColorKey;
+            data = SpriteImage.ToBmp24(data, ColorKey);
+        }
+
+        // Converts the image to an 8-bit RGBA PNG. BMP pixels matching the color key (or the top-left pixel when
+        // there is none) become transparent. A BMP without a color key gets the top-left color as its key, so
+        // converting back to BMP restores those pixels.
+        public void ConvertToPng()
+        {
+            data = SpriteImage.ToPng(data, ColorKey, out uint? keyUsed);
+            ColorKey ??= keyUsed;
+        }
     }
 }

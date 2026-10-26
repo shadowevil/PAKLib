@@ -222,10 +222,10 @@ namespace PAKLib
                         int r = (int)(start + SpriteHeaderSize + 4 + (long)i * RectangleSize);
                         sprite.Rectangles.Add(new SpriteRectangle
                         {
-                            x = BitConverter.ToInt16(bytes, r),
-                            y = BitConverter.ToInt16(bytes, r + 2),
-                            width = BitConverter.ToInt16(bytes, r + 4),
-                            height = BitConverter.ToInt16(bytes, r + 6),
+                            x = BitConverter.ToUInt16(bytes, r),
+                            y = BitConverter.ToUInt16(bytes, r + 2),
+                            width = BitConverter.ToUInt16(bytes, r + 4),
+                            height = BitConverter.ToUInt16(bytes, r + 6),
                             pivotX = BitConverter.ToInt16(bytes, r + 8),
                             pivotY = BitConverter.ToInt16(bytes, r + 10)
                         });
@@ -239,8 +239,27 @@ namespace PAKLib
                         BitConverter.TryWriteBytes(sprite.data.AsSpan(2), sprite.data.Length);
                     }
 
-                    slot.Sprite = sprite;
                     slot.End = imageEnd;
+
+                    // BMPs are saved as 24bpp, so one that cannot be decoded could not be written; treat it as corrupt
+                    string? decodeError = null;
+                    try { SpriteImage.CheckSize(sprite.data); }
+                    catch (InvalidDataException ex) { decodeError = ex.Message; }
+                    if (decodeError == null && sprite.ImageFormat == SpriteImageFormat.Bmp && SpriteImage.GetBmpBitsPerPixel(sprite.data) != 24)
+                    {
+                        try { SpriteImage.Decode(sprite.data); }
+                        catch (InvalidDataException ex) { decodeError = ex.Message; }
+                    }
+                    if (decodeError != null)
+                    {
+                        slot.Problem = $"Image data cannot be decoded ({decodeError})";
+                        slot.Notes.Clear();
+                        slots.Add(slot);
+                        previousEnd = slot.End;
+                        position = slot.End - 1;
+                        continue;
+                    }
+                    slot.Sprite = sprite;
                     if (!LooksLikeSpriteStart(bytes, start))
                         slot.Notes.Add((start, "Sprite header magic was invalid; rebuilt."));
                     if (countRecovered)
