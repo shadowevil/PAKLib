@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -57,7 +58,9 @@ namespace PAKLib
                 if(reader.BaseStream.Position != SpriteChunkOffset)
                     throw new Exception($"Expected to be at position {SpriteChunkOffset}, but was at {reader.BaseStream.Position}.");
 
-                // Read the header and padding
+                // Read the header and padding. The magic is required because PAKLib always writes it
+                // (some original files, e.g. MHelm3.pak and MHelm5.pak, have it zeroed and are rejected).
+                // The padding is not checked: original files contain leftover data there.
                 var defaultHeader = SpriteHeader.Default();
                 SpriteHeader spriteHeader = new SpriteHeader
                 {
@@ -65,8 +68,8 @@ namespace PAKLib
                     Padding = reader.ReadBytes(defaultHeader.Padding.Length)
                 };
                 // Check if the magic is correct
-                if (spriteHeader.Magic != SpriteHeader.Default().Magic)
-                    throw new InvalidDataException("Invalid sprite header magic.");
+                if (spriteHeader.Magic != defaultHeader.Magic)
+                    throw new InvalidDataException($"Invalid sprite header magic for sprite {data.Sprites.Count} at offset {SpriteChunkOffset}.");
 
                 // Create new sprite object instance
                 Sprite sprite = new Sprite();
@@ -78,29 +81,30 @@ namespace PAKLib
                     // Read 12 bytes of data (x, y, width, height, pivotX, pivotY) for each rectangle
                     sprite.Rectangles.Add(new SpriteRectangle()
                     {
-                        x = reader.ReadInt16(),
-                        y = reader.ReadInt16(),
-                        width = reader.ReadInt16(),
-                        height = reader.ReadInt16(),
+                        x = reader.ReadUInt16(),
+                        y = reader.ReadUInt16(),
+                        width = reader.ReadUInt16(),
+                        height = reader.ReadUInt16(),
                         pivotX = reader.ReadInt16(),
                         pivotY = reader.ReadInt16()
                     });
                 }
 
-                // Padding
-                reader.SkipBytes(4);
+                // Transparency color key, stored as bytes A RR GG BB (alpha other than FF = none authored)
+                sprite.ColorKey = BinaryPrimitives.ReverseEndianness(reader.ReadUInt32());
 
                 // Calculate the size (in bytes) of the sprite itself (bmp)
                 int sizeOfSpriteHeader = defaultHeader.Magic.Length + defaultHeader.Padding.Length;
                 int sizeOfRectangleCount = sizeof(Int32);
                 int sizeOfSpriteRectangles = (sprite.Rectangles.Count * SpriteRectangle.Size()) + sizeOfRectangleCount;
-                int sizeOfPadding = sizeof(Int32);
-                long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
+                int sizeOfColorKey = sizeof(UInt32);
+                long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfColorKey;
                 sprite.data = reader.ReadBytes((int)newLength);
                 
                 // Only add if valid BMP data
                 if (IsValidBmp(sprite.data) || IsValidPng(sprite.data))
                 {
+                    CheckImageSize(sprite.data, data.Sprites.Count);
                     data.Sprites.Add(sprite);
                 } else
                 {
@@ -160,7 +164,57 @@ namespace PAKLib
             return chunkType == "IHDR";
         }
 
-        public void Write(in string FilePath, in string encryption_key = "")
+        public void Write(in string FilePath)
+        {
+            File.WriteAllBytes(FilePath, ToBytes());
+        }
+
+        // Converts every sprite image to the given format (Bmp: 24bpp BMP, Png: 8-bit RGBA PNG)
+        public void ConvertImages(SpriteImageFormat format)
+        {
+            if (format == SpriteImageFormat.Unknown)
+                throw new ArgumentException("Target format must be Bmp or Png.", nameof(format));
+
+            foreach (var sprite in Sprites)
+            {
+                if (format == SpriteImageFormat.Bmp)
+                    sprite.ConvertToBmp();
+                else
+                    sprite.ConvertToPng();
+            }
+        }
+
+        // Images are capped at SpriteImage.MaxDimension (4096) per side
+        private static void CheckImageSize(byte[] image, int index)
+        {
+            try
+            {
+                SpriteImage.CheckSize(image);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidDataException($"Sprite {index}: {ex.Message}", ex);
+            }
+        }
+
+        // BMPs are always written as 24bpp; other bit depths are converted on the way out (the sprite is not changed)
+        private static byte[] ImageForWriting(Sprite sprite, int index)
+        {
+            CheckImageSize(sprite.data, index);
+            if (sprite.ImageFormat != SpriteImageFormat.Bmp || SpriteImage.GetBmpBitsPerPixel(sprite.data) == 24)
+                return sprite.data;
+
+            try
+            {
+                return SpriteImage.ToBmp24(sprite.data, sprite.ColorKey);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidDataException($"Sprite {index}: cannot convert BMP to 24bpp. {ex.Message}", ex);
+            }
+        }
+
+        public byte[] ToBytes()
         {
             using MemoryStream ms = new MemoryStream();
             using BinaryWriter writer = new BinaryWriter(ms);
@@ -185,6 +239,8 @@ namespace PAKLib
 
             foreach (var sprite in Sprites)
             {
+                byte[] image = ImageForWriting(sprite, offsetIndex);
+
                 // Begin counting how many bytes were written to calculate the correct image size
                 int startOffset = (int)writer.BaseStream.Position;
 
@@ -205,14 +261,16 @@ namespace PAKLib
                     writer.Write(rect.pivotY);
                 }
                 
-                // Padding
-                writer.Write(new byte[4]);
+                // Transparency color key, stored as bytes A RR GG BB (00 00 00 00 = none authored)
+                byte[] colorKeyBytes = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(colorKeyBytes, sprite.ColorKey ?? 0u);
+                writer.Write(colorKeyBytes);
 
-                // End counting bytes, and calculate the total bytes written for the sprite data (header + rectangles + padding)
+                // End counting bytes, and calculate the total bytes written for the sprite data (header + rectangles + color key)
                 int totalBytesWritten = (int)writer.BaseStream.Position - startOffset;
 
                 // Write the sprite data
-                writer.Write(sprite.data);
+                writer.Write(image);
 
                 // Get the current position after writing image data to return to the end after updating offsets
                 int endOffset = (int)writer.BaseStream.Position;
@@ -225,8 +283,8 @@ namespace PAKLib
                     // Write the start offset of the sprite data
                     writer.Write(startOffset);
 
-                    // Write the length of the sprite data, which is the total bytes of the header, rectangles, padding, and the sprite data itself
-                    writer.Write(sprite.data.Length + totalBytesWritten);
+                    // Write the length of the sprite data, which is the total bytes of the header, rectangles, color key, and the sprite data itself
+                    writer.Write(image.Length + totalBytesWritten);
 
                     // Return the stream back to the end of the last sprite data written.
                     writer.BaseStream.Position = endOffset;
@@ -234,21 +292,7 @@ namespace PAKLib
             }
 
             writer.Flush();
-
-            if (Path.GetExtension(FilePath).ToLower() == ".epak")
-            {
-                if (string.IsNullOrEmpty(encryption_key))
-                {
-                    throw new ArgumentException("Encryption key must be provided for encrypted PAK files.", nameof(encryption_key));
-                }
-                byte[] pakData = ms.ToArray();
-                Encryption.EncryptBytes(pakData, encryption_key);
-                File.WriteAllBytes(FilePath, pakData);
-            }
-            else
-            {
-                File.WriteAllBytes(FilePath, ms.ToArray());
-            }
+            return ms.ToArray();
         }
     }
 }
