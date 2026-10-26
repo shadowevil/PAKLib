@@ -65,10 +65,10 @@ At each table `Offset`, layout is:
 | 100          | Count | Int32  | 4                        | Number of rectangles                       |
 | 104          | Data  | Records| Count × 12 bytes         | Each record: x(Int16), y(Int16), width(Int16), height(Int16), pivotX(Int16), pivotY(Int16) |
 
-### 4.3 Entry Padding  *`4 bytes total`*
-| Offset (rel) | Field   | Type     | Size (bytes) | Description        |
-| ------------ | ------- | -------- | ---- | ------------------ |
-| ... | Padding | byte[4]  | 4    | Always zero bytes  |
+### 4.3 Transparency Color Key  *`4 bytes total`*
+| Offset (rel) | Field    | Type   | Size (bytes) | Description        |
+| ------------ | -------- | ------ | ---- | ------------------ |
+| ... | ColorKey | byte[4] | 4    | Authored transparency color key as `A RR GG BB`. `00 00 00 00` means none was authored and the key is derived from the top-left pixel of the sprite sheet (typical for PNG). `A` only marks the key as set: `FF` means set, so black is `FF 00 00 00`. Any other alpha is read as unset and written back as `00 00 00 00`; this includes original client files, which store `00 RR GG BB` (the 2.20 client ignores this field and always uses the top-left pixel). Exposed as `Sprite.ColorKey` (`0xFFRRGGBB`, or `null` when unset). |
 
 ### 4.4 Image Data  *`variable length`*
 | Offset (rel) | Field | Type    | Size (bytes) | Description                |

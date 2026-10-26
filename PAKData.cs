@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -87,15 +88,15 @@ namespace PAKLib
                     });
                 }
 
-                // Padding
-                reader.SkipBytes(4);
+                // Transparency color key, stored as bytes A RR GG BB (alpha other than FF = none authored)
+                sprite.ColorKey = BinaryPrimitives.ReverseEndianness(reader.ReadUInt32());
 
                 // Calculate the size (in bytes) of the sprite itself (bmp)
                 int sizeOfSpriteHeader = defaultHeader.Magic.Length + defaultHeader.Padding.Length;
                 int sizeOfRectangleCount = sizeof(Int32);
                 int sizeOfSpriteRectangles = (sprite.Rectangles.Count * SpriteRectangle.Size()) + sizeOfRectangleCount;
-                int sizeOfPadding = sizeof(Int32);
-                long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfPadding;
+                int sizeOfColorKey = sizeof(UInt32);
+                long newLength = ChunkSize - (sizeOfSpriteHeader + sizeOfSpriteRectangles) - sizeOfColorKey;
                 sprite.data = reader.ReadBytes((int)newLength);
                 
                 // Only add if valid BMP data
@@ -205,10 +206,12 @@ namespace PAKLib
                     writer.Write(rect.pivotY);
                 }
                 
-                // Padding
-                writer.Write(new byte[4]);
+                // Transparency color key, stored as bytes A RR GG BB (00 00 00 00 = none authored)
+                byte[] colorKeyBytes = new byte[4];
+                BinaryPrimitives.WriteUInt32BigEndian(colorKeyBytes, sprite.ColorKey ?? 0u);
+                writer.Write(colorKeyBytes);
 
-                // End counting bytes, and calculate the total bytes written for the sprite data (header + rectangles + padding)
+                // End counting bytes, and calculate the total bytes written for the sprite data (header + rectangles + color key)
                 int totalBytesWritten = (int)writer.BaseStream.Position - startOffset;
 
                 // Write the sprite data
@@ -225,7 +228,7 @@ namespace PAKLib
                     // Write the start offset of the sprite data
                     writer.Write(startOffset);
 
-                    // Write the length of the sprite data, which is the total bytes of the header, rectangles, padding, and the sprite data itself
+                    // Write the length of the sprite data, which is the total bytes of the header, rectangles, color key, and the sprite data itself
                     writer.Write(sprite.data.Length + totalBytesWritten);
 
                     // Return the stream back to the end of the last sprite data written.
