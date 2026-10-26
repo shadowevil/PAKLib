@@ -27,6 +27,32 @@
     Console.WriteLine($"PAK data written to {outFilePath} successfully.");
 ```
 
+# Repairing damaged files
+Repair salvages the sprites from a damaged file and rebuilds it. It finds each sprite by its image data (BMP or PNG), recovers the frames (rectangles) and color key in front of it, and writes a fresh file from those sprites, so the file header, sprite table and sprite headers are all regenerated.
+
+`PAK.RepairFile` repairs a `.pak` (or `.epak`, with its key) and writes the rebuilt file to a new path; the output is encrypted when its extension is `.epak`. It returns a report listing every issue found.
+```C#
+    PAKRepairReport report = PAK.RepairFile(@"C:\SPRITES\MHelm3.pak", @"C:\SPRITES\MHelm3-repaired.pak");
+    foreach (PAKRepairIssue issue in report.Issues)
+        Console.WriteLine(issue);
+    Console.WriteLine(report.Success ? "All sprites recovered or replaced." : "Some sprites were dropped.");
+    Console.WriteLine($"Placeholders at: {string.Join(", ", report.PlaceholderSprites)}");
+```
+`report.Success` is true when nothing was dropped; with `force`, corrupt sprites count as handled, so check `report.PlaceholderSprites` too. The output path must differ from the input path.
+`PAKRepair.Repair(bytes)` does the same on decrypted bytes in memory and returns the salvaged sprites in `report.Data`. `PAKRepair.Repair(bytes, start, end)` salvages only the sprites in one section of the data.
+
+**Corrupt sprites.** A sprite whose image is missing, damaged or cut off, or that uses 16-byte rectangle records (not supported), is flagged in the report and dropped. Pass `force: true` to put a 32x32 placeholder in its place instead (a magenta and black checkerboard, keeping the sprite's frame count where it is known), so the sprite indices of the rebuilt file match the original. `report.PlaceholderSprites` lists where placeholders went.
+```C#
+    PAKRepairReport report = PAK.RepairFile(inPath, outPath, force: true);
+```
+
+How sprites are recovered, so damage to one part is covered by another:
+- **Image data** is found by its BMP or PNG signature, and its length is read from the image itself (BMP header, PNG chunks), not from the sprite table.
+- **Sprite start and frame count** are worked out from the rectangle count, the sprite header magic, the sprite table, and the end of the previous sprite. If the rectangle count is damaged, the frames are recovered from the space between the sprite header and the image.
+- **Sprite table** entries are matched to the sprites found in file order. A sprite the table lists but that cannot be recovered is a corrupt sprite; a sprite the table misses is added.
+- A sprite never starts before the nearest `<Sprite File Header>` in front of its image, so recovered frames cannot run over another sprite. A sprite with nothing left to anchor it (header, image and table entry all gone) is reported but cannot be placed.
+- Header padding is not kept (the rebuilt headers are zero-padded), and color keys follow the usual rule (alpha other than `FF` reads as unset). Trailing bytes after the last sprite are dropped.
+
 # Nuget Package
 https://www.nuget.org/packages/PAKLib
 
