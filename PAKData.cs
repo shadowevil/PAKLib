@@ -58,16 +58,11 @@ namespace PAKLib
                 if(reader.BaseStream.Position != SpriteChunkOffset)
                     throw new Exception($"Expected to be at position {SpriteChunkOffset}, but was at {reader.BaseStream.Position}.");
 
-                // Read the header and padding
+                // Skip the header and padding. The magic is not validated: the game client never checks it,
+                // and some original files (e.g. MHelm3.pak, MHelm5.pak) have it zeroed. Alignment is already
+                // guaranteed by the position check above.
                 var defaultHeader = SpriteHeader.Default();
-                SpriteHeader spriteHeader = new SpriteHeader
-                {
-                    Magic = Encoding.UTF8.GetString(reader.ReadBytes(defaultHeader.Magic.Length)),
-                    Padding = reader.ReadBytes(defaultHeader.Padding.Length)
-                };
-                // Check if the magic is correct
-                if (spriteHeader.Magic != SpriteHeader.Default().Magic)
-                    throw new InvalidDataException("Invalid sprite header magic.");
+                reader.SkipBytes(defaultHeader.Magic.Length + defaultHeader.Padding.Length);
 
                 // Create new sprite object instance
                 Sprite sprite = new Sprite();
